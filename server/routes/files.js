@@ -4,6 +4,19 @@ const { listExportedFiles, DEFAULT_OUTPUT_DIR } = require('../fileWriter');
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Resolves and validates that a filename is safely within the output directory.
+ * Returns the full file path, or null if the path would escape the directory.
+ */
+function resolveSafePath(outputDir, filename) {
+  const safeName = path.basename(filename);
+  const filePath = path.join(path.resolve(outputDir), safeName);
+  if (!filePath.startsWith(path.resolve(outputDir))) {
+    return null;
+  }
+  return filePath;
+}
+
 // GET /files — list all exported markdown files
 router.get('/', (req, res) => {
   try {
@@ -19,10 +32,9 @@ router.get('/', (req, res) => {
 router.get('/:filename', (req, res) => {
   try {
     const outputDir = req.query.dir || DEFAULT_OUTPUT_DIR;
-    const safeName = path.basename(req.params.filename);
-    const filePath = path.join(outputDir, safeName);
+    const filePath = resolveSafePath(outputDir, req.params.filename);
 
-    if (!filePath.startsWith(outputDir)) {
+    if (!filePath) {
       return res.status(400).json({ success: false, error: 'Invalid filename' });
     }
 
@@ -30,6 +42,7 @@ router.get('/:filename', (req, res) => {
       return res.status(404).json({ success: false, error: 'File not found' });
     }
 
+    const safeName = path.basename(filePath);
     res.setHeader('Content-Type', 'text/markdown');
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
     res.send(fs.readFileSync(filePath, 'utf8'));
@@ -42,13 +55,17 @@ router.get('/:filename', (req, res) => {
 router.delete('/:filename', (req, res) => {
   try {
     const outputDir = req.query.dir || DEFAULT_OUTPUT_DIR;
-    const safeName = path.basename(req.params.filename);
-    const filePath = path.join(outputDir, safeName);
+    const filePath = resolveSafePath(outputDir, req.params.filename);
+
+    if (!filePath) {
+      return res.status(400).json({ success: false, error: 'Invalid filename' });
+    }
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ success: false, error: 'File not found' });
     }
 
+    const safeName = path.basename(filePath);
     fs.unlinkSync(filePath);
     res.json({ success: true, message: `Deleted ${safeName}` });
   } catch (err) {
