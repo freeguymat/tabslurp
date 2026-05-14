@@ -57,6 +57,22 @@ function clearRenames() {
   renames.clear();
 }
 
+/**
+ * Bulk-import a rename map, merging it into the existing renames.
+ * Entries with empty or non-string titles are skipped.
+ * @param {Object} map - Plain object mapping URLs to custom titles
+ */
+function importRenames(map) {
+  if (!map || typeof map !== 'object' || Array.isArray(map)) {
+    throw new Error('importRenames: map must be a plain object');
+  }
+  for (const [url, title] of Object.entries(map)) {
+    if (typeof title === 'string' && title.trim() !== '') {
+      renames.set(url, title.trim());
+    }
+  }
+}
+
 module.exports = {
   getRenameKey,
   renameTab,
@@ -66,4 +82,5 @@ module.exports = {
   applyRenames,
   getRenameMap,
   clearRenames,
+  importRenames,
 };
